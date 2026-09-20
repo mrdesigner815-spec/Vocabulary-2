@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Interactive Vocabulary Quiz</title>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--ink:#172033;--muted:#667085;--accent:#3157d5;--ok:#087a55;--bad:#b42318;--line:#d9e0ec}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{max-width:900px;margin:auto;padding:24px}.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:28px;margin-top:20px}
+h1,h2{margin-top:0}.muted{color:var(--muted)}label{display:block;font-weight:700;margin:14px 0 6px}
+input,select,button{font:inherit}input,select{width:100%;padding:13px;border:1px solid var(--line);border-radius:12px;background:white}
+button{border:0;border-radius:12px;padding:12px 18px;cursor:pointer}.primary{background:var(--accent);color:white;font-weight:700}.secondary{background:#eef2ff;color:#253b80}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.option{width:100%;text-align:left;background:#fff;border:1px solid var(--line);margin:7px 0}
+.option:hover{background:#f7f8fc}.hidden{display:none}.top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.progress{height:10px;background:#e7eaf0;border-radius:10px;overflow:hidden;margin:15px 0}.bar{height:100%;background:var(--accent);width:0}
+.feedback{min-height:30px;font-weight:700;margin-top:15px}.ok{color:var(--ok)}.bad{color:var(--bad)}
+.nav{display:flex;justify-content:space-between;gap:10px;margin-top:20px}.letters{font-size:24px;font-weight:800;letter-spacing:4px;text-align:center;background:#f5f7fa;padding:18px;border-radius:14px;margin:15px 0}
+@media(max-width:600px){.grid{grid-template-columns:1fr}.wrap{padding:12px}.card{padding:20px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section id="landing" class="card">
+<h1>Vocabulary Challenge</h1>
+<p class="muted">40 interactive questions • 4 sections • 3 attempts for each question</p>
+<form id="info">
+<label>Student Name</label><input id="name" required>
+<label>University</label><input id="university" required>
+<label>Year</label><select id="year" required><option value="">Select year</option><option>Year 1</option><option>Year 2</option><option>Year 3</option><option>Year 4</option><option>Year 5</option></select>
+<br><br><button class="primary" type="submit">Start Quiz →</button>
+</form>
+</section>
+<section id="quiz" class="card hidden">
+<div class="top"><div><div id="stag" class="muted"></div><h2 id="title"></h2></div><div><b id="prog"></b> • Score <b id="score">0</b>/40</div></div>
+<div class="progress"><div id="bar" class="bar"></div></div>
+<div id="question"></div>
+<div class="nav"><button id="prevSec" class="secondary">← Previous Section</button><button id="nextSec" class="primary">Next Section →</button></div>
+</section>
+<section id="result" class="card hidden" style="text-align:center">
+<h1>Quiz Complete!</h1><h2 id="finalName"></h2><p>Final score: <b id="finalScore"></b> / 40</p><p id="finalInfo" class="muted"></p>
+<button id="restart" class="primary">Restart Quiz</button>
+</section>
+</div>
+<script>
+const W=[
+["population","the number of people living in a place","noun"],
+["expert","somebody who has a lot of skill or knowledge about something","noun"],
+["countryside","land that is not in towns or cities and may have farms and fields","noun"],
+["opportunity","a chance to do something","noun"],
+["pollution","damage caused to water, air and land by harmful materials or waste","noun"],
+["modern","designed and made using the most recent ideas and methods","adjective"],
+["traffic","cars, lorries and other vehicles using a road","noun"],
+["capital","the most important city in a country or state, where the government is","noun"],
+["knowledge","information and understanding about something","noun"],
+["skill","the ability to do something well","noun"]
+];
+function mix(a){return [...a].sort(()=>Math.random()-.5)}
+const meanings=W.map((w,i)=>({q:`What does “${w[0]}” mean?`,a:w[1],o:mix([w[1],...mix(W.filter((_,j)=>j!==i)).slice(0,3).map(x=>x[1])])}));
+const rearr=W.map(w=>({q:"Rearrange the letters to make the correct vocabulary word.",a:w[0],hint:mix(w[0].split("")).join(" · ")}));
+const matching=W.map((w,i)=>({q:`Choose the word that matches this meaning: “${w[1]}”`,a:w[0],o:mix([w[0],...mix(W.filter((_,j)=>j!==i)).slice(0,3).map(x=>x[0])])}));
+const pos=W.map(w=>({q:`What part of speech is “${w[0]}”?`,a:w[2],o:mix(["noun","verb","adjective","adverb"])}));
+const S=[["Meaning",meanings,"choice"],["Rearrange the Words",rearr,"text"],["Match Word to Meaning",matching,"choice"],["Parts of Speech",pos,"choice"]];
+let s=0,q=0,score=0,attempt=Array.from({length:4},()=>Array(10).fill(0)),done=Array.from({length:4},()=>Array(10).fill(false));
+const $=x=>document.getElementById(x);
+function render(){
+ let sec=S[s],it=sec[1][q];
+ $("stag").textContent=`SECTION ${s+1} OF 4`; $("title").textContent=sec[0]; $("prog").textContent=`Question ${q+1}/10`; $("score").textContent=score; $("bar").style.width=`${(s*10+q)/40*100}%`;
+ let h=`<p class="muted"><b>Attempts left: <span id="tries">${3-attempt[s][q]}</span></b></p><h2>${it.q}</h2>`;
+ if(it.hint)h+=`<div class="letters">${it.hint}</div>`;
+ if(sec[2]=="choice") h+=it.o.map(x=>`<button class="option" data-v="${x.replaceAll('"','&quot;')}">${x}</button>`).join("");
+ else h+=`<form id="answerForm"><input id="answer" autocomplete="off" placeholder="Type the word"><br><br><button class="primary">Check Answer</button></form>`;
+ h+=`<div id="feedback" class="feedback"></div><button id="nextQ" class="primary hidden">Next Question →</button>`;
+ $("question").innerHTML=h;
+ document.querySelectorAll(".option").forEach(b=>b.onclick=()=>check(b.dataset.v));
+ if($("answerForm"))$("answerForm").onsubmit=e=>{e.preventDefault();check($("answer").value.trim())};
+ $("nextQ").onclick=nextQ;$("prevSec").disabled=s===0;$("nextSec").textContent=s===3?"Finish Quiz →":"Next Section →";
+}
+function lock(){document.querySelectorAll("#question .option,#answerForm input,#answerForm button").forEach(x=>x.disabled=true)}
+function check(v){
+ if(done[s][q])return; let it=S[s][1][q]; attempt[s][q]++; let ok=v.toLowerCase()===it.a.toLowerCase();
+ if(ok){done[s][q]=true;score++;$("feedback").className="feedback ok";$("feedback").textContent="✓ Correct! Great job.";lock();$("nextQ").classList.remove("hidden")}
+ else if(attempt[s][q]>=3){done[s][q]=true;$("feedback").className="feedback bad";$("feedback").innerHTML=`✗ Correct answer: <strong>${it.a}</strong>`;lock();$("nextQ").classList.remove("hidden")}
+ else{$("feedback").className="feedback bad";$("feedback").textContent=`Not correct. Try again — ${3-attempt[s][q]} attempt(s) left.`;$("tries").textContent=3-attempt[s][q]}
+ $("score").textContent=score;
+}
+function nextQ(){if(q<9){q++;render()}else if(s<3){s++;q=0;render()}else finish()}
+function finish(){$("quiz").classList.add("hidden");$("result").classList.remove("hidden");$("finalName").textContent=$("name").value;$("finalScore").textContent=score;$("finalInfo").textContent=$("university").value+" • "+$("year").value}
+$("info").onsubmit=e=>{e.preventDefault();$("landing").classList.add("hidden");$("quiz").classList.remove("hidden");render()};
+$("prevSec").onclick=()=>{if(s>0){s--;q=0;render()}};$("nextSec").onclick=()=>{if(s<3){s++;q=0;render()}else finish()};$("restart").onclick=()=>location.reload();
+</script>
+</body></html>
